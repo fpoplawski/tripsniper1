@@ -138,7 +138,6 @@ def run_pipeline(
     flight offers are fetched and persisted without combining them with hotel
     data.
     """
-    async_mode = os.getenv("ASYNC_FETCH") == "1"
     if origin is None:
         env_origin = os.getenv("ORIGIN_IATA")
         if env_origin:
@@ -154,15 +153,11 @@ def run_pipeline(
     hotels_enabled = os.getenv("HOTELS_ENABLED", "1") != "0"
     hotel_fetcher = None if flights_only or not hotels_enabled else BookingFetcher()
 
-    async def _gather_offers(airport: str, city_id: str, date_val: str):
-        flights_task = asyncio.to_thread(
-            flight_fetcher.fetch_offers, airport, date_val, origin
-        )
+    async def _gather(airport: str, city_id: str, date_val: str):
+        flights = await flight_fetcher.fetch_offers(airport, date_val, origin)
         if hotel_fetcher is None:
-            flights = await flights_task
             return flights, []
-        hotels_task = hotel_fetcher.async_fetch_offers(city_id, date_val, date_val)
-        flights, hotels = await asyncio.gather(flights_task, hotels_task)
+        hotels = await hotel_fetcher.fetch_offers(city_id, date_val, date_val)
         for h in hotels:
             h.location = airport
         return flights, hotels
@@ -173,8 +168,11 @@ def run_pipeline(
                 logging.warning("dest pair incomplete: %s / %s", airport, city_id)
                 continue
             for date in dates:
-                if async_mode:
-                    flights, hotels = asyncio.run(_gather_offers(airport, city_id, date))
+                if (
+                    asyncio.iscoroutinefunction(flight_fetcher.fetch_offers)
+                    or (hotel_fetcher and asyncio.iscoroutinefunction(hotel_fetcher.fetch_offers))
+                ):
+                    flights, hotels = asyncio.run(_gather(airport, city_id, date))
                 else:
                     flights = flight_fetcher.fetch_offers(airport, date, origin)
                     if hotel_fetcher is None:
@@ -183,6 +181,13 @@ def run_pipeline(
                         hotels = hotel_fetcher.fetch_offers(city_id, date, date)
                         for h in hotels:
                             h.location = airport
+                logging.info(
+                    "Fetched %d flights, %d hotels for %s %s",
+                    len(flights),
+                    len(hotels),
+                    airport,
+                    date,
+                )
                 offers = flights if hotel_fetcher is None else _combine_offers(flights, hotels)
 
                 for offer in offers:
