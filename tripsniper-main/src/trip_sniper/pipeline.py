@@ -20,7 +20,10 @@ from sqlalchemy import (
 from sqlalchemy.orm import declarative_base
 from sqlalchemy.orm import Session
 
-from .fetchers import BookingFetcher, AmadeusFlightFetcher
+from .fetchers.booking_rapidapi18 import (
+    BookingRapidAPI18Fetcher as BookingFetcher,
+)
+from .fetchers import AmadeusFlightFetcher
 from .models import Offer
 from .scoring.steal_score import steal_score
 
@@ -135,7 +138,8 @@ def run_pipeline(
     Base.metadata.create_all(engine)
 
     flight_fetcher = AmadeusFlightFetcher()
-    hotel_fetcher = None if flights_only else BookingFetcher()
+    hotels_enabled = os.getenv("HOTELS_ENABLED", "1") != "0"
+    hotel_fetcher = None if flights_only or not hotels_enabled else BookingFetcher()
 
     async def _gather_offers(dest: str, date_val: str):
         flights_task = asyncio.to_thread(
