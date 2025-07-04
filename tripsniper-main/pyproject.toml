@@ -1,0 +1,23 @@
+[tool.poetry]
+name = "trip-sniper"
+version = "0.1.0"
+description = "Trip Sniper service"
+authors = ["Your Name <you@example.com>"]
+packages = [{ include = "trip_sniper", from = "src" }]
+
+[tool.poetry.dependencies]
+python = "^3.10"
+fastapi = "^0.110.0"
+uvicorn = "^0.27.0"
+SQLAlchemy = "^2.0"
+amadeus = "^12.0.0"
+requests = "^2.32"
+httpx = "^0.27"
+psycopg2-binary = "^2.9"
+
+[tool.poetry.group.dev.dependencies]
+
+[build-system]
+requires = ["poetry-core>=1.0.0"]
+build-backend = "poetry.core.masonry.api"
+
