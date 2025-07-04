@@ -87,7 +87,7 @@ def test_run_pipeline_flights_only(monkeypatch, tmp_path):
     monkeypatch.setattr(pipeline, "BookingFetcher", DummyBookingFetcher)
     monkeypatch.setattr(pipeline, "_upsert_offer", dummy_upsert)
 
-    run_pipeline(["PAR"], ["2024-01-01"], database_url="sqlite:///ignored.db", flights_only=True)
+    run_pipeline(["PAR"], ["PAR"], ["2024-01-01"], database_url="sqlite:///ignored.db", flights_only=True)
 
     assert recorded == ["F1"]
     assert not calls["booking_init"]

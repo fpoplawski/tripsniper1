@@ -6,6 +6,7 @@ import logging
 import os
 import sys
 import asyncio
+import itertools
 from datetime import datetime
 from typing import Iterable, List, Sequence
 
@@ -121,7 +122,8 @@ def _upsert_offer(session: Session, offer: Offer, score: float) -> None:
 
 
 def run_pipeline(
-    destinations: Sequence[str],
+    flight_destinations: Sequence[str],
+    hotel_destinations: Sequence[str],
     dates: Sequence[str],
     database_url: str | None = None,
     origin: str | None = None,
@@ -129,8 +131,12 @@ def run_pipeline(
 ) -> None:
     """Fetch offers, score them and persist to PostgreSQL.
 
-    When ``flights_only`` is ``True`` only Amadeus flight offers are fetched
-    and persisted without combining them with hotel data.
+    ``flight_destinations`` contains IATA airport codes used for flights while
+    ``hotel_destinations`` holds Booking.com city identifiers. The lists are
+    paired in order using ``itertools.zip_longest``. Incomplete pairs are
+    skipped with a warning. When ``flights_only`` is ``True`` only Amadeus
+    flight offers are fetched and persisted without combining them with hotel
+    data.
     """
     async_mode = os.getenv("ASYNC_FETCH") == "1"
     if origin is None:
@@ -148,24 +154,35 @@ def run_pipeline(
     hotels_enabled = os.getenv("HOTELS_ENABLED", "1") != "0"
     hotel_fetcher = None if flights_only or not hotels_enabled else BookingFetcher()
 
-    async def _gather_offers(dest: str, date_val: str):
+    async def _gather_offers(airport: str, city_id: str, date_val: str):
         flights_task = asyncio.to_thread(
-            flight_fetcher.fetch_offers, dest, date_val, origin
+            flight_fetcher.fetch_offers, airport, date_val, origin
         )
         if hotel_fetcher is None:
             flights = await flights_task
             return flights, []
-        hotels_task = hotel_fetcher.async_fetch_offers(dest, date_val, date_val)
-        return await asyncio.gather(flights_task, hotels_task)
+        hotels_task = hotel_fetcher.async_fetch_offers(city_id, date_val, date_val)
+        flights, hotels = await asyncio.gather(flights_task, hotels_task)
+        for h in hotels:
+            h.location = airport
+        return flights, hotels
 
     with Session(engine) as session:
-        for dest in destinations:
+        for airport, city_id in itertools.zip_longest(flight_destinations, hotel_destinations):
+            if not airport or not city_id:
+                logging.warning("dest pair incomplete: %s / %s", airport, city_id)
+                continue
             for date in dates:
                 if async_mode:
-                    flights, hotels = asyncio.run(_gather_offers(dest, date))
+                    flights, hotels = asyncio.run(_gather_offers(airport, city_id, date))
                 else:
-                    flights = flight_fetcher.fetch_offers(dest, date, origin)
-                    hotels = [] if hotel_fetcher is None else hotel_fetcher.fetch_offers(dest, date, date)
+                    flights = flight_fetcher.fetch_offers(airport, date, origin)
+                    if hotel_fetcher is None:
+                        hotels = []
+                    else:
+                        hotels = hotel_fetcher.fetch_offers(city_id, date, date)
+                        for h in hotels:
+                            h.location = airport
                 offers = flights if hotel_fetcher is None else _combine_offers(flights, hotels)
 
                 for offer in offers:
@@ -181,12 +198,21 @@ def run(origin: str | None = None) -> None:
     """Entry point used by the scheduler.
 
     Destinations and dates are read from the environment variables
-    ``DESTINATIONS`` and ``DATES`` (comma separated).
+    ``FLIGHT_DESTS``/``HOTEL_DESTS`` and ``DATES`` (comma separated). Command
+    line ``--destinations`` and ``--dates`` still work and override the
+    environment when provided.
     """
-    dests = os.getenv("DESTINATIONS")
-    dates = os.getenv("DATES")
-    if not dests or not dates:
-        raise RuntimeError("DESTINATIONS and DATES must be set")
+    flight_dests = os.getenv("FLIGHT_DESTS", "").split(",")
+    hotel_dests = os.getenv("HOTEL_DESTS", "").split(",")
+    dates = os.getenv("DATES", "").split(",")
+
+    flight_dests = [d.strip() for d in flight_dests if d.strip()]
+    hotel_dests = [d.strip() for d in hotel_dests if d.strip()]
+    dates = [d.strip() for d in dates if d.strip()]
+
+    if not flight_dests or not hotel_dests or not dates:
+        raise RuntimeError("FLIGHT_DESTS, HOTEL_DESTS and DATES must be set")
+
     flights_only = os.getenv("FLIGHTS_ONLY") == "1"
-    run_pipeline(dests.split(","), dates.split(","), origin=origin, flights_only=flights_only)
+    run_pipeline(flight_dests, hotel_dests, dates, origin=origin, flights_only=flights_only)
 
