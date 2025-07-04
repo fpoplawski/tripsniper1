@@ -5,7 +5,12 @@ from __future__ import annotations
 from dataclasses import dataclass
 from datetime import datetime
 
-__all__ = ["Offer"]
+from sqlalchemy import Boolean, Column, DateTime, Float, Integer, String
+from sqlalchemy.orm import declarative_base
+
+__all__ = ["Base", "OfferRecord", "Offer"]
+
+Base = declarative_base()
 
 
 @dataclass
@@ -41,3 +46,25 @@ class Offer:
             raise ValueError("total_duration must be non-negative")
         if self.attraction_score < 0:
             raise ValueError("attraction_score must be non-negative")
+
+
+class OfferRecord(Base):
+    """SQLAlchemy ORM model mirroring :class:`Offer`."""
+
+    __tablename__ = "offers"
+
+    id = Column(String, primary_key=True)
+    price_per_person = Column(Float, nullable=False)
+    avg_price = Column(Float, nullable=False)
+    hotel_rating = Column(Float, nullable=False)
+    stars = Column(Integer, nullable=False)
+    distance_from_beach = Column(Float, nullable=False)
+    direct = Column(Boolean, nullable=False)
+    total_duration = Column(Integer, nullable=False)
+    date = Column(DateTime, nullable=False)
+    location = Column(String, nullable=False)
+    attraction_score = Column(Float, nullable=False)
+    visible_from = Column(DateTime, nullable=False)
+    category = Column(String(20), nullable=False)
+    steal_score = Column(Float, nullable=False)
+

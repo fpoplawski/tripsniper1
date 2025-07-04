@@ -10,7 +10,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import create_engine, select
 from sqlalchemy.orm import Session, sessionmaker
 
-from ..pipeline import Base, OfferRecord
+from ..models import Base, OfferRecord
 
 logger = logging.getLogger(__name__)
 
