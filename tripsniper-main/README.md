@@ -41,8 +41,11 @@ AMADEUS_API_SECRET=yyyyyyyyyyyyyyyy
 ORIGIN_IATA=WAW                          # default departure airport
 DATABASE_URL=postgresql+psycopg2://user:pass@localhost/tripsniper
 CELERY_BROKER_URL=redis://localhost:6379/0
-BOOKING_CLIENT_ID=your_booking_client_id
-BOOKING_CLIENT_SECRET=your_booking_client_secret
+BOOKING_RAPIDAPI_KEY=your_rapidapi_key
+BOOKING_RAPIDAPI_HOST=booking-com18.p.rapidapi.com
+BOOKING_RAPIDAPI_CURRENCY=EUR
+ASYNC_FETCH=1                            # use async pipeline mode when set to 1
+HOTELS_ENABLED=1                         # disable hotel fetching with 0
 ```
 
 ### Sample request
@@ -102,5 +105,14 @@ variable. The value is parsed using `celery.schedules.crontab`.
 
 ```bash
 export RUN_PIPELINE_CRON="0 */6 * * *"  # run every six hours
+```
+
+The pipeline reads destinations and travel dates from comma-separated
+environment variables:
+
+```ini
+DESTINATIONS=WAW,LON
+DATES=2025-07-01,2025-07-08
+FLIGHTS_ONLY=0  # set to 1 to skip hotel offers
 ```
 
