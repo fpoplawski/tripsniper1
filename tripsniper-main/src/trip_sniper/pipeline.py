@@ -10,23 +10,14 @@ import itertools
 from datetime import datetime
 from typing import Iterable, List, Sequence
 
-from sqlalchemy import (
-    Boolean,
-    Column,
-    DateTime,
-    Float,
-    Integer,
-    String,
-    create_engine,
-)
-from sqlalchemy.orm import declarative_base
+from sqlalchemy import create_engine
 from sqlalchemy.orm import Session
 
 from .fetchers.booking_rapidapi18 import (
     BookingRapidAPI18Fetcher as BookingFetcher,
 )
 from .fetchers import AmadeusFlightFetcher
-from .models import Offer
+from .models import Base, Offer, OfferRecord
 from .scoring.steal_score import steal_score
 
 logging.basicConfig(
@@ -38,28 +29,6 @@ logging.basicConfig(
 __all__ = ["run_pipeline", "OfferRecord"]
 
 logger = logging.getLogger(__name__)
-
-Base = declarative_base()
-
-
-class OfferRecord(Base):
-    """SQLAlchemy ORM model for persisted offers."""
-
-    __tablename__ = "offers"
-
-    id = Column(String, primary_key=True)
-    price_per_person = Column(Float, nullable=False)
-    avg_price = Column(Float, nullable=False)
-    hotel_rating = Column(Float, nullable=False)
-    stars = Column(Integer, nullable=False)
-    distance_from_beach = Column(Float, nullable=False)
-    direct = Column(Boolean, nullable=False)
-    total_duration = Column(Integer, nullable=False)
-    date = Column(DateTime, nullable=False)
-    location = Column(String, nullable=False)
-    attraction_score = Column(Float, nullable=False)
-    visible_from = Column(DateTime, nullable=False)
-    steal_score = Column(Float, nullable=False)
 
 
 def _combine_offers(flights: Iterable[Offer], hotels: Iterable[Offer]) -> List[Offer]:
@@ -104,6 +73,7 @@ def _upsert_offer(session: Session, offer: Offer, score: float) -> None:
         record.location = offer.location
         record.attraction_score = offer.attraction_score
         record.visible_from = offer.visible_from
+        record.category = ""
         record.steal_score = score
         session.add(record)
     else:
@@ -118,6 +88,7 @@ def _upsert_offer(session: Session, offer: Offer, score: float) -> None:
         existing.location = offer.location
         existing.attraction_score = offer.attraction_score
         existing.visible_from = offer.visible_from
+        existing.category = ""
         existing.steal_score = score
 
 
