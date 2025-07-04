@@ -63,6 +63,7 @@ src/trip_sniper/scheduler.py starts a Celery beat process that triggers the data
 export RUN_PIPELINE_CRON="0 */6 * * *"  # run every six hours
 The pipeline reads destinations and travel dates from comma-separated environment variables:
 
-DESTINATIONS=WAW,LON
+FLIGHT_DESTS=WAW,LON          # IATA airport codes
+HOTEL_DESTS=12345,67890       # Booking.com city IDs
 DATES=2025-07-01,2025-07-08
 FLIGHTS_ONLY=0  # set to 1 to skip hotel offers
