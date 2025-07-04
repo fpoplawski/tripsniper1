@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import logging
 import os
+import sys
 import asyncio
 from datetime import datetime
 from typing import Iterable, List, Sequence
@@ -26,6 +27,12 @@ from .fetchers.booking_rapidapi18 import (
 from .fetchers import AmadeusFlightFetcher
 from .models import Offer
 from .scoring.steal_score import steal_score
+
+logging.basicConfig(
+    level=os.getenv("LOG_LEVEL", "INFO").upper(),
+    format="%(levelname)s %(name)s:%(lineno)d  %(message)s",
+    stream=sys.stdout,
+)
 
 __all__ = ["run_pipeline", "OfferRecord"]
 
