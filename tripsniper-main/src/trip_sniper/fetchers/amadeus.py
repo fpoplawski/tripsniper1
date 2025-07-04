@@ -88,7 +88,11 @@ class AmadeusFlightFetcher:
                 data = getattr(response, "data", [])
                 return self._map_offers(data, dest, date)
             except ResponseError as exc:
-                logger.warning("Amadeus request failed (attempt %s): %s", attempt + 1, exc)
+                logger.error(
+                    "Amadeus HTTP %s \u2013 %s",
+                    getattr(exc.response, "status_code", ""),
+                    getattr(exc.response, "body", ""),
+                )
                 if attempt == 2:
                     raise RuntimeError("Failed to fetch data from Amadeus API") from exc
                 time.sleep(backoff)

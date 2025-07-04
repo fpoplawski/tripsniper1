@@ -7,6 +7,7 @@ from datetime import date, datetime
 from typing import List, Optional
 
 import httpx
+import logging
 
 from ..models import Offer
 
@@ -70,6 +71,13 @@ class BookingRapidAPI18Fetcher:
             resp = await client.get(endpoint, params=params, headers=headers, timeout=15)
             resp.raise_for_status()
             data = resp.json()
+        except httpx.HTTPStatusError as e:
+            logging.error(
+                "Booking18 HTTP %s \u2013 %s",
+                e.response.status_code,
+                e.response.text,
+            )
+            return []
         finally:
             if created:
                 await client.aclose()
